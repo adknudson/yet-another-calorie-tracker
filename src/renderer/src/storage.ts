@@ -14,6 +14,7 @@ export interface DataStore {
   addEntry(input: NewEntryInput): Promise<Entry>
   editEntry(id: string, input: EditEntryInput): Promise<Entry>
   deleteEntry(id: string): Promise<void>
+  restoreEntry(entry: Entry): Promise<void>
   clearEntries(): Promise<void>
   resetSettings(): Promise<Settings>
   clearAllData(): Promise<Settings>
@@ -44,6 +45,10 @@ class ElectronStore implements DataStore {
 
   deleteEntry(id: string): Promise<void> {
     return window.api!.deleteEntry(id)
+  }
+
+  restoreEntry(entry: Entry): Promise<void> {
+    return window.api!.restoreEntry(entry)
   }
 
   clearEntries(): Promise<void> {
@@ -130,6 +135,12 @@ class LocalStorageStore implements DataStore {
   async deleteEntry(id: string): Promise<void> {
     const data = this.read()
     this.write({ ...data, entries: data.entries.filter((e) => e.id !== id) })
+  }
+
+  async restoreEntry(entry: Entry): Promise<void> {
+    const data = this.read()
+    if (data.entries.some((e) => e.id === entry.id)) return
+    this.write({ ...data, entries: [...data.entries, entry] })
   }
 
   async clearEntries(): Promise<void> {

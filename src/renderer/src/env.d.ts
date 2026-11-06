@@ -8,6 +8,7 @@ interface ExposedApi {
   addEntry: (input: NewEntryInput) => Promise<Entry>
   editEntry: (id: string, input: EditEntryInput) => Promise<Entry>
   deleteEntry: (id: string) => Promise<void>
+  restoreEntry: (entry: Entry) => Promise<void>
   clearEntries: () => Promise<void>
   resetSettings: () => Promise<Settings>
   clearAllData: () => Promise<Settings>

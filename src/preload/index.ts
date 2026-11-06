@@ -11,6 +11,7 @@ const api = {
   editEntry: (id: string, input: EditEntryInput): Promise<Entry> =>
     ipcRenderer.invoke(IpcChannels.editEntry, id, input),
   deleteEntry: (id: string): Promise<void> => ipcRenderer.invoke(IpcChannels.deleteEntry, id),
+  restoreEntry: (entry: Entry): Promise<void> => ipcRenderer.invoke(IpcChannels.restoreEntry, entry),
   clearEntries: (): Promise<void> => ipcRenderer.invoke(IpcChannels.clearEntries),
   resetSettings: (): Promise<Settings> => ipcRenderer.invoke(IpcChannels.resetSettings),
   clearAllData: (): Promise<Settings> => ipcRenderer.invoke(IpcChannels.clearAllData)

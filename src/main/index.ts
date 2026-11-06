@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
-import { IpcChannels, type AppInfo, type EditEntryInput, type NewEntryInput, type Settings } from '../shared/ipc'
+import { IpcChannels, type AppInfo, type EditEntryInput, type Entry, type NewEntryInput, type Settings } from '../shared/ipc'
 import * as storage from './storage'
 
 let mainWindow: BrowserWindow | null = null
@@ -71,6 +71,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.deleteEntry, (_event, id: string) => {
     storage.deleteEntry(id)
+  })
+
+  ipcMain.handle(IpcChannels.restoreEntry, (_event, entry: Entry) => {
+    storage.restoreEntry(entry)
   })
 
   ipcMain.handle(IpcChannels.clearEntries, () => {

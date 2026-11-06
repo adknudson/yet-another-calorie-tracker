@@ -9,6 +9,7 @@ export const IpcChannels = {
   addEntry: 'entry:add',
   editEntry: 'entry:edit',
   deleteEntry: 'entry:delete',
+  restoreEntry: 'entry:restore',
   clearEntries: 'entries:clear',
   resetSettings: 'settings:reset',
   clearAllData: 'data:clear-all'

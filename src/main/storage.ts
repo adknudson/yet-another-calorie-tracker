@@ -148,6 +148,15 @@ export function deleteEntry(id: string): void {
   saveData({ ...data, entries: data.entries.filter((e) => e.id !== id) })
 }
 
+/** Re-insert a previously deleted entry (exact same object). No-op if its id already exists. */
+export function restoreEntry(entry: Entry): void {
+  const data = getData()
+  if (data.entries.some((e) => e.id === entry.id)) return
+  const sanitized = sanitizeEntries([entry])
+  if (sanitized.length === 0) return
+  saveData({ ...data, entries: [...data.entries, sanitized[0]] })
+}
+
 /** Remove all entries (settings are kept) and persist. */
 export function clearEntries(): void {
   const data = getData()

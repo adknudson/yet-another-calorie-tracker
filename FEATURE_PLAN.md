@@ -14,7 +14,7 @@ Validation for every item: `npm run typecheck`, plus manual checks in the browse
 
 ## 2. Undo for deletes
 
-- [ ] Deleting an entry shows a toast "Entry deleted — Undo" (auto-dismiss ~5 s); clicking Undo restores the exact entry (same id, amount, note, timestamp).
+- [x] Deleting an entry shows a toast "Entry deleted — Undo" (auto-dismiss ~5 s); clicking Undo restores the exact entry (same id, amount, note, timestamp).
 - Approach: delete persists immediately (no data loss if the app is closed quickly); undo re-inserts the original entry object.
 - Files:
   - `src/shared/ipc.ts` — new `restoreEntry` channel.

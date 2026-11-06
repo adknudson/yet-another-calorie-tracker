@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   DEFAULT_SETTINGS,
@@ -48,6 +48,10 @@ export default function App() {
   const [draftWeekStart, setDraftWeekStart] = useState<0 | 1>(DEFAULT_SETTINGS.weekStartsOnDay)
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
+
+  // Undo toast for deleted entries (auto-dismisses after ~5 s).
+  const [undoToast, setUndoToast] = useState<Entry | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Danger-zone confirmation: 'entries' clears logged entries only, 'all' resets everything.
   const [confirming, setConfirming] = useState<'entries' | 'settings' | 'all' | null>(null)
@@ -112,16 +116,47 @@ export default function App() {
   }
 
   async function handleDelete(id: string): Promise<void> {
+    const removed = entries.find((e) => e.id === id)
     try {
       await store.deleteEntry(id)
       setEntries((prev) => prev.filter((e) => e.id !== id))
       if (editingId === id) {
         cancelEdit()
       }
+      if (removed != null) {
+        showUndoToast(removed)
+      }
     } catch (err: unknown) {
       setError(String(err))
     }
   }
+
+  function showUndoToast(entry: Entry): void {
+    if (undoTimerRef.current != null) clearTimeout(undoTimerRef.current)
+    setUndoToast(entry)
+    undoTimerRef.current = setTimeout(() => setUndoToast(null), 5000)
+  }
+
+  async function handleUndoDelete(): Promise<void> {
+    const entry = undoToast
+    if (entry == null) return
+    setUndoToast(null)
+    if (undoTimerRef.current != null) clearTimeout(undoTimerRef.current)
+    try {
+      await store.restoreEntry(entry)
+      setEntries((prev) => [...prev, entry])
+    } catch (err: unknown) {
+      setError(String(err))
+    }
+  }
+
+  // Clear the pending toast timer on unmount.
+  useEffect(
+    () => () => {
+      if (undoTimerRef.current != null) clearTimeout(undoTimerRef.current)
+    },
+    []
+  )
 
   function startEdit(entry: Entry): void {
     if (!settings) return
@@ -522,6 +557,15 @@ export default function App() {
             {settingsError && <p className="error-text">{settingsError}</p>}
           </details>
         </>
+      )}
+
+      {undoToast != null && (
+        <div className="toast" role="status">
+          <span>Entry deleted</span>
+          <button type="button" onClick={() => void handleUndoDelete()}>
+            Undo
+          </button>
+        </div>
       )}
 
       <footer>Built with Electron, electron-vite, React and TypeScript. All data is stored locally.</footer>

@@ -424,6 +424,29 @@ button:hover {
   font-size: 0.9rem;
 }
 
+/* Undo toast */
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
+  z-index: 10;
+}
+
+.toast button {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+}
+
 footer {
   color: var(--muted);
   font-size: 0.85rem;
