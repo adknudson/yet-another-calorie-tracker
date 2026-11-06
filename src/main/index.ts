@@ -88,6 +88,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.clearAllData, () => {
     return storage.clearAllData()
   })
+
+  // The save dialog is anchored to the window that sent the request.
+  ipcMain.handle(IpcChannels.exportData, (event) => {
+    return storage.exportData(BrowserWindow.fromWebContents(event.sender))
+  })
+
+  ipcMain.handle(IpcChannels.importData, (_event, json: string) => {
+    return storage.importData(json)
+  })
 }
 
 app.whenReady().then(() => {

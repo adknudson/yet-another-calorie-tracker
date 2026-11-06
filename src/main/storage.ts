@@ -1,9 +1,10 @@
-import { app } from 'electron'
+import { app, dialog, type BrowserWindow, type SaveDialogOptions } from 'electron'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { parseExportPayload, sanitizeEntries } from '../shared/sanitize'
 import { DEFAULT_SETTINGS } from '../shared/types'
-import type { AppData, EditEntryInput, Entry, NewEntryInput, Settings } from '../shared/types'
+import type { AppData, EditEntryInput, Entry, ExportPayload, NewEntryInput, Settings } from '../shared/types'
 
 const DATA_FILE_NAME = 'calorie-tracker.json'
 
@@ -70,25 +71,6 @@ function sanitizeSettings(input: unknown): Settings {
     obj.theme === 'light' || obj.theme === 'dark' || obj.theme === 'system' ? obj.theme : current.theme
 
   return { dailyBudgetKcal, units, weekdayOverridesKcal, weekStartsOnDay, theme }
-}
-
-function sanitizeEntries(input: unknown): Entry[] {
-  if (!Array.isArray(input)) return []
-  const now = new Date().toISOString()
-  return input.flatMap((raw) => {
-    const e = raw as Partial<Entry>
-    if (typeof e.id !== 'string' || typeof e.amountKcal !== 'number' || !Number.isFinite(e.amountKcal)) {
-      return []
-    }
-    return [
-      {
-        id: e.id,
-        amountKcal: Math.round(e.amountKcal),
-        note: typeof e.note === 'string' ? e.note : '',
-        createdAt: typeof e.createdAt === 'string' ? e.createdAt : now
-      }
-    ]
-  })
 }
 
 /** Return a copy of all persisted data. */
@@ -178,6 +160,32 @@ export function clearAllData(): Settings {
   const settings = { ...DEFAULT_SETTINGS }
   saveData({ settings, entries: [] })
   return settings
+}
+
+/** Show a save dialog and write the exported entries as JSON. Returns the written path, or null if cancelled. */
+export async function exportData(parent?: BrowserWindow | null): Promise<string | null> {
+  const data = getData()
+  const payload: ExportPayload = { version: 1, entries: [...data.entries] }
+
+  const options: SaveDialogOptions = {
+    title: 'Export entries',
+    defaultPath: join(app.getPath('documents'), 'calorie-tracker-entries.json'),
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  }
+  const result =
+    parent != null ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options)
+  if (result.canceled || result.filePath == null) return null
+
+  writeFileSync(result.filePath, JSON.stringify(payload, null, 2), 'utf-8')
+  return result.filePath
+}
+
+/** Replace all entries with the given exported payload and persist. Returns the imported entries. */
+export function importData(json: string): Entry[] {
+  const payload = parseExportPayload(json)
+  const data = getData()
+  saveData({ ...data, entries: payload.entries })
+  return payload.entries
 }
 
 function toPositiveNumber(value: number): number {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import {
   DEFAULT_SETTINGS,
   WEEKDAY_LABELS,
@@ -63,8 +63,14 @@ export default function App() {
   const [undoToast, setUndoToast] = useState<Entry | null>(null)
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Danger-zone confirmation: 'entries' clears logged entries only, 'all' resets everything.
-  const [confirming, setConfirming] = useState<'entries' | 'settings' | 'all' | null>(null)
+  // Danger-zone confirmation: 'entries' clears logged entries only, 'all' resets everything,
+  // 'import' replaces all entries with the chosen file.
+  const [confirming, setConfirming] = useState<'entries' | 'settings' | 'all' | 'import' | null>(null)
+
+  // Data import/export feedback and pending (not yet confirmed) imported payload.
+  const [dataFeedback, setDataFeedback] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
+  const [pendingImportText, setPendingImportText] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     store
@@ -299,6 +305,60 @@ export default function App() {
     } catch (err: unknown) {
       setError(String(err))
     }
+  }
+
+  function flashDataFeedback(kind: 'ok' | 'error', message: string): void {
+    setDataFeedback({ kind, message })
+    setTimeout(() => setDataFeedback(null), 4000)
+  }
+
+  async function handleExport(): Promise<void> {
+    try {
+      const result = await store.exportData()
+      if (result == null) return // User cancelled the save dialog.
+      const word = entries.length === 1 ? 'entry' : 'entries'
+      flashDataFeedback('ok', `Exported ${entries.length} ${word} to ${result}.`)
+    } catch (err: unknown) {
+      flashDataFeedback('error', String(err))
+    }
+  }
+
+  function handleImportFileSelected(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0]
+    // Reset so selecting the same file again re-triggers this handler.
+    event.target.value = ''
+    if (file == null) return
+    file
+      .text()
+      .then((text) => {
+        setPendingImportText(text)
+        setConfirming('import')
+      })
+      .catch(() => flashDataFeedback('error', 'Could not read the selected file.'))
+  }
+
+  async function handleConfirmImport(): Promise<void> {
+    if (pendingImportText == null) return
+    try {
+      const imported = await store.importData(pendingImportText)
+      setEntries(imported)
+      if (editingId !== null) {
+        cancelEdit()
+      }
+      setPendingImportText(null)
+      setConfirming(null)
+      const word = imported.length === 1 ? 'entry' : 'entries'
+      flashDataFeedback('ok', `Imported ${imported.length} ${word}.`)
+    } catch (err: unknown) {
+      setPendingImportText(null)
+      setConfirming(null)
+      flashDataFeedback('error', String(err))
+    }
+  }
+
+  function handleCancelImport(): void {
+    setPendingImportText(null)
+    setConfirming(null)
   }
 
   const selectedDate = parseDateKey(selectedKey)
@@ -544,6 +604,29 @@ export default function App() {
             </div>
 
             <h3>Data</h3>
+            <p className="hint">Export and import your logged entries as a JSON file.</p>
+            <div className="settings-actions">
+              <button type="button" onClick={() => void handleExport()}>
+                Export entries
+              </button>
+              <button type="button" onClick={() => fileInputRef.current?.click()}>
+                Import entries
+              </button>
+              {/* Hidden input: the Import button opens it; confirmation happens in the bar below. */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={(e) => handleImportFileSelected(e)}
+              />
+            </div>
+
+            {dataFeedback != null && (
+              <p className={dataFeedback.kind === 'ok' ? 'saved-flash' : 'error-text'}>{dataFeedback.message}</p>
+            )}
+
+            <h3>Danger zone</h3>
             <p className="hint">These actions cannot be undone.</p>
             <div className="settings-actions danger-actions">
               <button type="button" className="btn-danger" onClick={() => setConfirming('settings')}>
@@ -557,6 +640,17 @@ export default function App() {
               </button>
             </div>
 
+            {confirming === 'import' && (
+              <div className="confirm-bar" role="alertdialog" aria-label="Import entries confirmation">
+                <span>Replace all logged entries with the ones from the selected file?</span>
+                <button type="button" className="btn-danger" onClick={() => void handleConfirmImport()}>
+                  Yes, replace entries
+                </button>
+                <button type="button" className="btn-secondary" onClick={handleCancelImport}>
+                  Cancel
+                </button>
+              </div>
+            )}
             {confirming === 'entries' && (
               <div className="confirm-bar" role="alertdialog" aria-label="Clear entries confirmation">
                 <span>Delete all logged entries? Your settings will be kept.</span>

@@ -14,7 +14,9 @@ const api = {
   restoreEntry: (entry: Entry): Promise<void> => ipcRenderer.invoke(IpcChannels.restoreEntry, entry),
   clearEntries: (): Promise<void> => ipcRenderer.invoke(IpcChannels.clearEntries),
   resetSettings: (): Promise<Settings> => ipcRenderer.invoke(IpcChannels.resetSettings),
-  clearAllData: (): Promise<Settings> => ipcRenderer.invoke(IpcChannels.clearAllData)
+  clearAllData: (): Promise<Settings> => ipcRenderer.invoke(IpcChannels.clearAllData),
+  exportData: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.exportData),
+  importData: (json: string): Promise<Entry[]> => ipcRenderer.invoke(IpcChannels.importData, json)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -46,6 +46,13 @@ export interface AppData {
   entries: Entry[]
 }
 
+/** Payload for exported/imported entry data. Entries only — settings are not part of it. */
+export interface ExportPayload {
+  /** Format version. Currently 1. */
+  version: 1
+  entries: Entry[]
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   dailyBudgetKcal: 2000,
   units: 'kcal',

@@ -1,5 +1,6 @@
+import { parseExportPayload } from '../../shared/sanitize'
 import { DEFAULT_SETTINGS } from '../../shared/types'
-import type { AppData, EditEntryInput, Entry, NewEntryInput, Settings } from '../../shared/types'
+import type { AppData, EditEntryInput, Entry, ExportPayload, NewEntryInput, Settings } from '../../shared/types'
 
 /**
  * Persistence for the calorie tracker.
@@ -18,9 +19,14 @@ export interface DataStore {
   clearEntries(): Promise<void>
   resetSettings(): Promise<Settings>
   clearAllData(): Promise<Settings>
+  /** Export all entries. Returns the written/downloaded file name (or path), or null if cancelled. */
+  exportData(): Promise<string | null>
+  /** Replace all entries with the ones from an exported payload. Returns the imported entries. */
+  importData(text: string): Promise<Entry[]>
 }
 
 const LOCAL_STORAGE_KEY = 'calorie-tracker-data-v1'
+const EXPORT_FILE_NAME = 'calorie-tracker-entries.json'
 
 function isElectron(): boolean {
   return typeof window !== 'undefined' && window.api != null
@@ -61,6 +67,14 @@ class ElectronStore implements DataStore {
 
   clearAllData(): Promise<Settings> {
     return window.api!.clearAllData()
+  }
+
+  exportData(): Promise<string | null> {
+    return window.api!.exportData()
+  }
+
+  importData(text: string): Promise<Entry[]> {
+    return window.api!.importData(text)
   }
 }
 
@@ -159,6 +173,29 @@ class LocalStorageStore implements DataStore {
     const settings = { ...DEFAULT_SETTINGS }
     this.write({ settings, entries: [] })
     return settings
+  }
+
+  async exportData(): Promise<string | null> {
+    const data = this.read()
+    const payload: ExportPayload = { version: 1, entries: [...data.entries] }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    try {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = EXPORT_FILE_NAME
+      anchor.click()
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+    return EXPORT_FILE_NAME
+  }
+
+  async importData(text: string): Promise<Entry[]> {
+    const payload = parseExportPayload(text)
+    const data = this.read()
+    this.write({ ...data, entries: payload.entries })
+    return payload.entries
   }
 }
 

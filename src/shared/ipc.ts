@@ -1,4 +1,4 @@
-import type { AppData, EditEntryInput, Entry, NewEntryInput, Settings } from './types'
+import type { AppData, EditEntryInput, Entry, ExportPayload, NewEntryInput, Settings } from './types'
 
 /** Channel names shared between the main process, preload script and renderer. */
 export const IpcChannels = {
@@ -12,11 +12,13 @@ export const IpcChannels = {
   restoreEntry: 'entry:restore',
   clearEntries: 'entries:clear',
   resetSettings: 'settings:reset',
-  clearAllData: 'data:clear-all'
+  clearAllData: 'data:clear-all',
+  exportData: 'data:export',
+  importData: 'data:import'
 } as const
 
 /** Payload types for the calorie-tracker IPC channels. */
-export type { AppData, EditEntryInput, Entry, NewEntryInput, Settings }
+export type { AppData, EditEntryInput, Entry, ExportPayload, NewEntryInput, Settings }
 
 /** Application metadata returned by the main process. */
 export interface AppInfo {

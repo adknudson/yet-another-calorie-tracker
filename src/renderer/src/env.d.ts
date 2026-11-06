@@ -12,6 +12,8 @@ interface ExposedApi {
   clearEntries: () => Promise<void>
   resetSettings: () => Promise<Settings>
   clearAllData: () => Promise<Settings>
+  exportData: () => Promise<string | null>
+  importData: (json: string) => Promise<Entry[]>
 }
 
 declare global {

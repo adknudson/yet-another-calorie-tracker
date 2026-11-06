@@ -26,23 +26,24 @@ Validation for every item: `npm run typecheck`, plus manual checks in the browse
 
 ## 3. Dark mode
 
-- [ ] Light/dark toggle in Settings, persisted; initial default follows `prefers-color-scheme`.
+- [x] Light/dark toggle in Settings, persisted; initial default follows `prefers-color-scheme`.
 - Files:
   - `src/shared/types.ts` — add `theme: 'light' | 'dark'` to `Settings` and `DEFAULT_SETTINGS`.
   - `src/main/storage.ts` — sanitize `theme` in `sanitizeSettings`.
   - `src/renderer/src/styles.css` — convert hardcoded colors to CSS variables with `:root` (light) and `[data-theme="dark"]` sets.
   - `src/renderer/src/App.tsx` — set `document.documentElement.dataset.theme`, add the toggle to the settings card.
 
-## 4. Export / import JSON backup
+## 4. Export / import entries (JSON)
 
-- [ ] Settings gets "Export" and "Import" buttons; payload shape `{ version: 1, settings, entries }`. Import replaces all data after a confirm step.
+- [ ] Settings gets "Export entries" and "Import entries" buttons. Entries-only data transfer (no settings), payload shape `{ version: 1, entries }`. Import replaces ALL logged entries after a confirm step; settings are untouched.
 - Files:
-  - `src/shared/sanitize.ts` (new) — move `sanitizeSettings`/`sanitizeEntries` out of `src/main/storage.ts` so the browser path can validate imports too; main process keeps using them.
+  - `src/shared/sanitize.ts` (new) — `sanitizeEntries` moved out of `src/main/storage.ts`, plus `parseExportPayload`: accepts a JSON string or object, throws descriptive errors for invalid JSON / wrong shape. Used by both the Electron and browser import paths. (`sanitizeSettings` stays private in main since settings are no longer imported.)
+  - `src/shared/types.ts` — new `ExportPayload` interface.
   - `src/shared/ipc.ts` — new channels: `exportData`, `importData`.
-  - `src/main/index.ts` + `src/main/storage.ts` — `exportData`: show save dialog, write JSON, return path or null (cancelled). `importData(json)`: parse, validate with the shared sanitizers, replace all data.
-  - `src/preload/index.ts` — typed wrappers.
-  - `src/renderer/src/storage.ts` — browser/PWA fallback: export = Blob download; import = hidden `<input type="file">` + text read.
-  - `src/renderer/src/App.tsx` — buttons in Settings, confirm before import, success/error line.
+  - `src/main/index.ts` + `src/main/storage.ts` — `exportData`: show save dialog (default `calorie-tracker-entries.json` in Documents), write pretty JSON, return path or null (cancelled). `importData(json)`: parse/validate with the shared sanitizer, replace all entries.
+  - `src/preload/index.ts` + `src/renderer/src/env.d.ts` — typed wrappers.
+  - `src/renderer/src/storage.ts` — browser/PWA fallback: export = Blob download; import = `parseExportPayload` on the file text, then replace entries.
+  - `src/renderer/src/App.tsx` — buttons in the Settings "Data" section, hidden file input for import, confirm bar before replacing entries, success/error feedback line.
 
 ## 5. PWA (installable mobile)
 
