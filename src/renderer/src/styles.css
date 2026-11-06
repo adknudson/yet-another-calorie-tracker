@@ -1,4 +1,29 @@
+/* Light theme (default). */
 :root {
+  color-scheme: light;
+  --bg: #eceef4;
+  --surface: #ffffff;
+  --text: #2b2d3a;
+  --muted: #6b7085;
+  --accent: #3b62e0;
+  --ok: #2f9e44;
+  --warn: #a97a17;
+  --error: #d64550;
+  /* Contrast + surface tints that flip with the theme. */
+  --on-accent: #ffffff;
+  --on-error: #ffffff;
+  --border: rgba(30, 33, 58, 0.16);
+  --border-strong: rgba(30, 33, 58, 0.28);
+  --hover: rgba(30, 33, 58, 0.05);
+  --progress-track: rgba(30, 33, 58, 0.1);
+  --accent-soft: rgba(59, 98, 224, 0.12);
+  --error-soft: rgba(214, 69, 80, 0.1);
+  --error-border: rgba(214, 69, 80, 0.4);
+  --shadow: rgba(30, 33, 58, 0.15);
+}
+
+/* Dark theme (opt-in via <html data-theme="dark">). */
+[data-theme='dark'] {
   color-scheme: dark;
   --bg: #1e1e2e;
   --surface: #27273a;
@@ -8,6 +33,16 @@
   --ok: #a6e3a1;
   --warn: #f9e2af;
   --error: #f38ba8;
+  --on-accent: #1e1e2e;
+  --on-error: #1e1e2e;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  --hover: rgba(255, 255, 255, 0.04);
+  --progress-track: rgba(255, 255, 255, 0.08);
+  --accent-soft: rgba(137, 180, 250, 0.15);
+  --error-soft: rgba(243, 139, 168, 0.12);
+  --error-border: rgba(243, 139, 168, 0.4);
+  --shadow: rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -70,7 +105,7 @@ h3 {
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: rgba(137, 180, 250, 0.15);
+  background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.75rem;
 }
@@ -101,7 +136,7 @@ h3 {
 .progress {
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--progress-track);
   overflow: hidden;
 }
 
@@ -124,7 +159,7 @@ label {
 input,
 select {
   background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
   padding: 0.5rem 0.75rem;
@@ -140,7 +175,7 @@ select:focus {
 
 button {
   background: var(--accent);
-  color: #1e1e2e;
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   padding: 0.5rem 1rem;
@@ -192,7 +227,7 @@ button:hover {
 .icon-btn:hover {
   color: var(--error);
   filter: none;
-  background: rgba(243, 139, 168, 0.12);
+  background: var(--error-soft);
 }
 
 .empty {
@@ -218,7 +253,7 @@ button:hover {
 }
 
 .entry-list li:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover);
 }
 
 .entry-time {
@@ -244,7 +279,7 @@ button:hover {
 .entry-list li.editing {
   flex-direction: column;
   align-items: stretch;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover);
 }
 
 .edit-form {
@@ -257,7 +292,7 @@ button:hover {
 .btn-secondary {
   background: transparent;
   color: var(--muted);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--border-strong);
 }
 
 .btn-secondary:hover {
@@ -303,13 +338,13 @@ button:hover {
 .range-tab {
   background: transparent;
   color: var(--muted);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--border-strong);
   padding: 0.35rem 0.9rem;
 }
 
 .range-tab.active {
   background: var(--accent);
-  color: #1e1e2e;
+  color: var(--on-accent);
 }
 
 .history-meta {
@@ -348,7 +383,7 @@ button:hover {
   position: absolute;
   transform: translate(-50%, -130%);
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
@@ -403,7 +438,7 @@ button:hover {
 
 .btn-danger {
   background: var(--error);
-  color: #1e1e2e;
+  color: var(--on-error);
 }
 
 .btn-danger:hover {
@@ -416,9 +451,9 @@ button:hover {
   gap: 0.75rem;
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(243, 139, 168, 0.4);
+  border: 1px solid var(--error-border);
   border-radius: 8px;
-  background: rgba(243, 139, 168, 0.08);
+  background: var(--error-soft);
 }
 
 .confirm-bar span {
@@ -436,10 +471,10 @@ button:hover {
   align-items: center;
   gap: 0.75rem;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.6rem 1rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px var(--shadow);
   font-size: 0.9rem;
   z-index: 10;
 }

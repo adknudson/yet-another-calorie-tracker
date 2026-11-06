@@ -22,6 +22,11 @@ function shiftDateKey(key: string, days: number): string {
   return dateKeyOf(d)
 }
 
+/** Current OS theme preference. */
+function systemTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export default function App() {
   const store = useMemo(() => createDataStore(), [])
 
@@ -46,6 +51,11 @@ export default function App() {
   const [draftUnits, setDraftUnits] = useState<Units>('kcal')
   const [draftOverrides, setDraftOverrides] = useState<string[]>(Array(7).fill(''))
   const [draftWeekStart, setDraftWeekStart] = useState<0 | 1>(DEFAULT_SETTINGS.weekStartsOnDay)
+  // Theme draft ('system' = follow the OS preference).
+  const [draftTheme, setDraftTheme] = useState<'system' | 'light' | 'dark'>('system')
+  // Live OS light/dark preference (only meaningful while draftTheme is 'system').
+  const [systemPref, setSystemPref] = useState<'light' | 'dark'>(systemTheme)
+  const effectiveTheme: 'light' | 'dark' = draftTheme === 'system' ? systemPref : draftTheme
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
 
@@ -75,7 +85,22 @@ export default function App() {
       settings.weekdayOverridesKcal.map((v) => (v == null ? '' : String(Math.round(fromKcal(v, settings.units)))))
     )
     setDraftWeekStart(settings.weekStartsOnDay)
+    // No saved theme (fresh install) → 'system'.
+    setDraftTheme(settings.theme ?? 'system')
   }, [settings])
+
+  // Apply the effective theme to <html> so the CSS variables switch.
+  useEffect(() => {
+    document.documentElement.dataset.theme = effectiveTheme
+  }, [effectiveTheme])
+
+  // Track live OS preference changes; effective while the draft is 'system'.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setSystemPref(systemTheme())
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const today = new Date()
   const todayKey = dateKeyOf(today)
@@ -224,7 +249,8 @@ export default function App() {
         dailyBudgetKcal: Math.round(budgetKcal),
         units: draftUnits,
         weekdayOverridesKcal: overrides,
-        weekStartsOnDay: draftWeekStart
+        weekStartsOnDay: draftWeekStart,
+        theme: draftTheme
       })
       setSettings(next)
       setSettingsError(null)
@@ -474,6 +500,17 @@ export default function App() {
                 >
                   <option value="1">Monday</option>
                   <option value="0">Sunday</option>
+                </select>
+              </label>
+              <label>
+                Theme
+                <select
+                  value={draftTheme}
+                  onChange={(e) => setDraftTheme(e.target.value as 'system' | 'light' | 'dark')}
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
                 </select>
               </label>
             </div>

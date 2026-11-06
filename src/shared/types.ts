@@ -16,6 +16,11 @@ export interface Settings {
   weekdayOverridesKcal: (number | null)[]
   /** First day of the week: 0 = Sunday, 1 = Monday. Default is Monday. */
   weekStartsOnDay: 0 | 1
+  /**
+   * UI theme. `'system'` (also the default when undefined, e.g. fresh install)
+   * follows the OS light/dark preference.
+   */
+  theme?: 'system' | 'light' | 'dark'
 }
 
 /** A single logged calorie entry. */

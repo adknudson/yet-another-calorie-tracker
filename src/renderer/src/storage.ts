@@ -171,6 +171,8 @@ function normalizeSettings(input: unknown): Settings {
 
   const weekStartsOnDay: Settings['weekStartsOnDay'] =
     obj.weekStartsOnDay === 0 || obj.weekStartsOnDay === 1 ? obj.weekStartsOnDay : DEFAULT_SETTINGS.weekStartsOnDay
+  const theme: Settings['theme'] =
+    obj.theme === 'light' || obj.theme === 'dark' || obj.theme === 'system' ? obj.theme : DEFAULT_SETTINGS.theme
 
   return {
     dailyBudgetKcal: budget,
@@ -181,7 +183,8 @@ function normalizeSettings(input: unknown): Settings {
       const n = Number(value)
       return Number.isFinite(n) && n >= 0 ? Math.round(n) : null
     }),
-    weekStartsOnDay
+    weekStartsOnDay,
+    theme
   }
 }
 

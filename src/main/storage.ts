@@ -66,8 +66,10 @@ function sanitizeSettings(input: unknown): Settings {
 
   const weekStartsOnDay: Settings['weekStartsOnDay'] =
     obj.weekStartsOnDay === 0 || obj.weekStartsOnDay === 1 ? obj.weekStartsOnDay : current.weekStartsOnDay
+  const theme: Settings['theme'] =
+    obj.theme === 'light' || obj.theme === 'dark' || obj.theme === 'system' ? obj.theme : current.theme
 
-  return { dailyBudgetKcal, units, weekdayOverridesKcal, weekStartsOnDay }
+  return { dailyBudgetKcal, units, weekdayOverridesKcal, weekStartsOnDay, theme }
 }
 
 function sanitizeEntries(input: unknown): Entry[] {
