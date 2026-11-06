@@ -308,9 +308,9 @@ export default function App() {
                 <span className="value">{formatAmount(consumedToday, settings.units)}</span>
               </div>
               <div>
-                <span className="label">{remaining >= 0 ? 'Remaining' : 'Over by'}</span>
+                <span className="label">Remaining</span>
                 <span className={`value ${remaining < 0 ? 'negative' : ''}`}>
-                  {formatAmount(Math.abs(remaining), settings.units)}
+                  {remaining < 0 ? `−${formatAmount(Math.abs(remaining), settings.units)}` : formatAmount(remaining, settings.units)}
                 </span>
               </div>
             </div>
