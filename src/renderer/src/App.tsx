@@ -1,0 +1,530 @@
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
+import {
+  DEFAULT_SETTINGS,
+  WEEKDAY_LABELS,
+  dateKeyOf,
+  effectiveBudgetKcal,
+  formatAmount,
+  fromKcal,
+  hasWeekdayOverride,
+  orderedWeekdayIndices,
+  parseDateKey,
+  toKcal
+} from '../../shared/types'
+import type { Entry, Settings, Units } from '../../shared/types'
+import { createDataStore } from './storage'
+import { HistoryChart } from './HistoryChart'
+
+function shiftDateKey(key: string, days: number): string {
+  const d = parseDateKey(key)
+  d.setDate(d.getDate() + days)
+  return dateKeyOf(d)
+}
+
+export default function App() {
+  const store = useMemo(() => createDataStore(), [])
+
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [entries, setEntries] = useState<Entry[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [selectedKey, setSelectedKey] = useState(() => dateKeyOf(new Date()))
+
+  // Add-entry form
+  const [amountInput, setAmountInput] = useState('')
+  const [noteInput, setNoteInput] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
+
+  // Inline entry editing (drafts displayed in the currently selected unit)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+
+  // Settings panel drafts (displayed in the currently selected unit)
+  const [draftBudget, setDraftBudget] = useState('')
+  const [draftUnits, setDraftUnits] = useState<Units>('kcal')
+  const [draftOverrides, setDraftOverrides] = useState<string[]>(Array(7).fill(''))
+  const [draftWeekStart, setDraftWeekStart] = useState<0 | 1>(DEFAULT_SETTINGS.weekStartsOnDay)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [savedFlash, setSavedFlash] = useState(false)
+
+  // Danger-zone confirmation: 'entries' clears logged entries only, 'all' resets everything.
+  const [confirming, setConfirming] = useState<'entries' | 'settings' | 'all' | null>(null)
+
+  useEffect(() => {
+    store
+      .load()
+      .then((data) => {
+        setSettings(data.settings)
+        setEntries(data.entries)
+      })
+      .catch((err: unknown) => setError(String(err)))
+  }, [store])
+
+  // Sync the settings drafts whenever saved settings change.
+  useEffect(() => {
+    if (!settings) return
+    setDraftBudget(String(Math.round(fromKcal(settings.dailyBudgetKcal, settings.units))))
+    setDraftUnits(settings.units)
+    setDraftOverrides(
+      settings.weekdayOverridesKcal.map((v) => (v == null ? '' : String(Math.round(fromKcal(v, settings.units)))))
+    )
+    setDraftWeekStart(settings.weekStartsOnDay)
+  }, [settings])
+
+  const today = new Date()
+  const todayKey = dateKeyOf(today)
+  const effectiveBudget = settings ? effectiveBudgetKcal(settings, today) : 0
+  const consumedToday = useMemo(
+    () => entries.reduce((sum, e) => (dateKeyOf(new Date(e.createdAt)) === todayKey ? sum + e.amountKcal : sum), 0),
+    [entries, todayKey]
+  )
+  const remaining = effectiveBudget - consumedToday
+  const progressPct = effectiveBudget > 0 ? Math.min(100, (consumedToday / effectiveBudget) * 100) : 0
+
+  const dayEntries = useMemo(
+    () =>
+      entries
+        .filter((e) => dateKeyOf(new Date(e.createdAt)) === selectedKey)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [entries, selectedKey]
+  )
+  const dayTotal = dayEntries.reduce((sum, e) => sum + e.amountKcal, 0)
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault()
+    if (!settings) return
+    const raw = Number(amountInput.replace(',', '.'))
+    if (!Number.isFinite(raw) || raw <= 0) {
+      setFormError('Enter a positive amount.')
+      return
+    }
+    try {
+      const entry = await store.addEntry({ amountKcal: toKcal(raw, settings.units), note: noteInput })
+      setEntries((prev) => [...prev, entry])
+      setAmountInput('')
+      setNoteInput('')
+      setFormError(null)
+    } catch (err: unknown) {
+      setFormError(String(err))
+    }
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    try {
+      await store.deleteEntry(id)
+      setEntries((prev) => prev.filter((e) => e.id !== id))
+      if (editingId === id) {
+        cancelEdit()
+      }
+    } catch (err: unknown) {
+      setError(String(err))
+    }
+  }
+
+  function startEdit(entry: Entry): void {
+    if (!settings) return
+    setEditingId(entry.id)
+    setEditAmount(String(Math.round(fromKcal(entry.amountKcal, settings.units))))
+    setEditNote(entry.note ?? '')
+    setEditError(null)
+  }
+
+  function cancelEdit(): void {
+    setEditingId(null)
+    setEditAmount('')
+    setEditNote('')
+    setEditError(null)
+  }
+
+  async function handleSaveEdit(): Promise<void> {
+    if (!settings || editingId === null) return
+    const raw = Number(editAmount.replace(',', '.'))
+    if (!Number.isFinite(raw) || raw <= 0) {
+      setEditError('Enter a positive amount.')
+      return
+    }
+    try {
+      const entry = await store.editEntry(editingId, {
+        amountKcal: toKcal(raw, settings.units),
+        note: editNote
+      })
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)))
+      cancelEdit()
+    } catch (err: unknown) {
+      setEditError(String(err))
+    }
+  }
+
+  function handleUnitsChange(next: Units): void {
+    if (next === draftUnits) return
+    const convert = (s: string): string => {
+      const t = s.trim()
+      if (t === '') return ''
+      const n = Number(t)
+      if (!Number.isFinite(n)) return s
+      return String(Math.round(fromKcal(toKcal(n, draftUnits), next)))
+    }
+    setDraftBudget(convert(draftBudget))
+    setDraftOverrides(draftOverrides.map(convert))
+    setDraftUnits(next)
+  }
+
+  async function handleSaveSettings(): Promise<void> {
+    if (!settings) return
+    const budgetKcal = toKcal(Number(draftBudget.replace(',', '.')), draftUnits)
+    if (!Number.isFinite(budgetKcal) || budgetKcal <= 0) {
+      setSettingsError('Daily budget must be a positive number.')
+      return
+    }
+    const overrides: (number | null)[] = draftOverrides.map((s) => {
+      const t = s.trim()
+      if (t === '') return null
+      const kcal = toKcal(Number(t), draftUnits)
+      return Number.isFinite(kcal) && kcal >= 0 ? Math.round(kcal) : null
+    })
+    try {
+      const next = await store.updateSettings({
+        dailyBudgetKcal: Math.round(budgetKcal),
+        units: draftUnits,
+        weekdayOverridesKcal: overrides,
+        weekStartsOnDay: draftWeekStart
+      })
+      setSettings(next)
+      setSettingsError(null)
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 2000)
+    } catch (err: unknown) {
+      setSettingsError(String(err))
+    }
+  }
+
+  async function handleClearEntries(): Promise<void> {
+    try {
+      await store.clearEntries()
+      setEntries([])
+      if (editingId !== null) {
+        cancelEdit()
+      }
+      setConfirming(null)
+    } catch (err: unknown) {
+      setError(String(err))
+    }
+  }
+
+  async function handleResetSettings(): Promise<void> {
+    try {
+      const next = await store.resetSettings()
+      setSettings(next)
+      if (editingId !== null) {
+        cancelEdit()
+      }
+      setConfirming(null)
+    } catch (err: unknown) {
+      setError(String(err))
+    }
+  }
+
+  async function handleClearAllData(): Promise<void> {
+    try {
+      const next = await store.clearAllData()
+      setSettings(next)
+      setEntries([])
+      if (editingId !== null) {
+        cancelEdit()
+      }
+      setConfirming(null)
+    } catch (err: unknown) {
+      setError(String(err))
+    }
+  }
+
+  const selectedDate = parseDateKey(selectedKey)
+  const selectedBudget = settings ? effectiveBudgetKcal(settings, selectedDate) : 0
+
+  return (
+    <main className="app">
+      <header>
+        <h1>Yet Another Calorie Tracker</h1>
+      </header>
+
+      {error && <div className="card error">Something went wrong: {error}</div>}
+
+      {!settings && !error && <div className="card">Loading…</div>}
+
+      {settings && (
+        <>
+          <section className="card today-card">
+            <h2>Today</h2>
+            <p className="today-date">
+              {today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {hasWeekdayOverride(settings, today) && (
+                <span className="badge">{WEEKDAY_LABELS[today.getDay()]} override</span>
+              )}
+            </p>
+            <div className="budget-row">
+              <div>
+                <span className="label">Budget</span>
+                <span className="value">{formatAmount(effectiveBudget, settings.units)}</span>
+              </div>
+              <div>
+                <span className="label">Consumed</span>
+                <span className="value">{formatAmount(consumedToday, settings.units)}</span>
+              </div>
+              <div>
+                <span className="label">{remaining >= 0 ? 'Remaining' : 'Over by'}</span>
+                <span className={`value ${remaining < 0 ? 'negative' : ''}`}>
+                  {formatAmount(Math.abs(remaining), settings.units)}
+                </span>
+              </div>
+            </div>
+            <div className="progress" role="progressbar" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
+              <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+          </section>
+
+          <section className="card">
+            <h2>Add entry</h2>
+            <form onSubmit={handleAdd} className="entry-form">
+              <label>
+                Amount ({settings.units}) *
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  placeholder="e.g. 450"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="note-field">
+                Note (optional)
+                <input
+                  type="text"
+                  maxLength={500}
+                  placeholder="e.g. lunch — pasta with chicken"
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                />
+              </label>
+              <button type="submit">Add</button>
+            </form>
+            {formError && <p className="error-text">{formError}</p>}
+          </section>
+
+          <section className="card">
+            <div className="day-nav">
+              <button type="button" onClick={() => setSelectedKey((k) => shiftDateKey(k, -1))} aria-label="Previous day">
+                ‹
+              </button>
+              <span className="day-title">
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              </span>
+              <button type="button" onClick={() => setSelectedKey((k) => (k === todayKey ? k : todayKey))}>
+                Today
+              </button>
+              <button type="button" onClick={() => setSelectedKey((k) => shiftDateKey(k, 1))} aria-label="Next day">
+                ›
+              </button>
+            </div>
+
+            {dayEntries.length === 0 ? (
+              <p className="empty">No entries for this day.</p>
+            ) : (
+              <ul className="entry-list">
+                {dayEntries.map((e) => (
+                  <li key={e.id} className={editingId === e.id ? 'editing' : ''}>
+                    {editingId === e.id ? (
+                      <>
+                        <form
+                          className="edit-form"
+                          onSubmit={(ev) => {
+                            ev.preventDefault()
+                            void handleSaveEdit()
+                          }}
+                        >
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            aria-label={`Amount in ${settings.units}`}
+                            placeholder={settings.units}
+                            value={editAmount}
+                            onChange={(ev) => setEditAmount(ev.target.value)}
+                            required
+                          />
+                          <input
+                            type="text"
+                            maxLength={500}
+                            aria-label="Note (optional)"
+                            placeholder="Note (optional)"
+                            value={editNote}
+                            onChange={(ev) => setEditNote(ev.target.value)}
+                          />
+                          <button type="submit">Save</button>
+                          <button type="button" className="btn-secondary" onClick={cancelEdit}>
+                            Cancel
+                          </button>
+                        </form>
+                        {editError && <p className="error-text">{editError}</p>}
+                      </>
+                    ) : (
+                      <>
+                        <span className="entry-time">
+                          {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="entry-amount">{formatAmount(e.amountKcal, settings.units)}</span>
+                        <span className="entry-note">{e.note ?? ''}</span>
+                        <button type="button" className="icon-btn" onClick={() => startEdit(e)} aria-label="Edit entry">
+                          ✎
+                        </button>
+                        <button type="button" className="icon-btn" onClick={() => void handleDelete(e.id)} aria-label="Delete entry">
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="day-summary">
+              <span>
+                Budget: {formatAmount(selectedBudget, settings.units)}
+                {hasWeekdayOverride(settings, selectedDate) && (
+                  <span className="badge">{WEEKDAY_LABELS[selectedDate.getDay()]} override</span>
+                )}
+              </span>
+              {dayEntries.length > 0 && <span>Total: {formatAmount(dayTotal, settings.units)}</span>}
+            </div>
+          </section>
+
+          <HistoryChart
+            entries={entries}
+            settings={settings}
+            selectedKey={selectedKey}
+            todayKey={todayKey}
+            onSelectDay={setSelectedKey}
+          />
+
+          <details className="card settings-card">
+            <summary>Settings</summary>
+            <div className="settings-grid">
+              <label>
+                Daily budget ({draftUnits})
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={draftBudget}
+                  onChange={(e) => setDraftBudget(e.target.value)}
+                />
+              </label>
+              <label>
+                Units
+                <select value={draftUnits} onChange={(e) => handleUnitsChange(e.target.value as Units)}>
+                  <option value="kcal">kcal</option>
+                  <option value="kJ">kJ</option>
+                </select>
+              </label>
+              <label>
+                Week starts on
+                <select
+                  value={String(draftWeekStart)}
+                  onChange={(e) => setDraftWeekStart(Number(e.target.value) === 0 ? 0 : 1)}
+                >
+                  <option value="1">Monday</option>
+                  <option value="0">Sunday</option>
+                </select>
+              </label>
+            </div>
+
+            <h3>Weekday overrides</h3>
+            <p className="hint">Leave empty to use the default budget for that day.</p>
+            <div className="overrides-grid">
+              {orderedWeekdayIndices(settings.weekStartsOnDay).map((i) => (
+                <label key={i}>
+                  {WEEKDAY_LABELS[i]}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="any"
+                    placeholder={String(Math.round(fromKcal(settings.dailyBudgetKcal, draftUnits)))}
+                    value={draftOverrides[i]}
+                    onChange={(e) =>
+                      setDraftOverrides((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="settings-actions">
+              <button type="button" onClick={() => void handleSaveSettings()}>
+                Save settings
+              </button>
+              {savedFlash && <span className="saved-flash">Saved ✓</span>}
+            </div>
+
+            <h3>Data</h3>
+            <p className="hint">These actions cannot be undone.</p>
+            <div className="settings-actions danger-actions">
+              <button type="button" className="btn-danger" onClick={() => setConfirming('settings')}>
+                Reset settings
+              </button>
+              <button type="button" className="btn-danger" onClick={() => setConfirming('entries')}>
+                Clear entries
+              </button>
+              <button type="button" className="btn-danger" onClick={() => setConfirming('all')}>
+                Clear all data
+              </button>
+            </div>
+
+            {confirming === 'entries' && (
+              <div className="confirm-bar" role="alertdialog" aria-label="Clear entries confirmation">
+                <span>Delete all logged entries? Your settings will be kept.</span>
+                <button type="button" className="btn-danger" onClick={() => void handleClearEntries()}>
+                  Yes, clear entries
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setConfirming(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+            {confirming === 'settings' && (
+              <div className="confirm-bar" role="alertdialog" aria-label="Reset settings confirmation">
+                <span>Reset your settings to defaults? Your logged entries will be kept.</span>
+                <button type="button" className="btn-danger" onClick={() => void handleResetSettings()}>
+                  Yes, reset settings
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setConfirming(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+            {confirming === 'all' && (
+              <div className="confirm-bar" role="alertdialog" aria-label="Clear all data confirmation">
+                <span>Delete all entries and reset settings to defaults?</span>
+                <button type="button" className="btn-danger" onClick={() => void handleClearAllData()}>
+                  Yes, clear everything
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setConfirming(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {settingsError && <p className="error-text">{settingsError}</p>}
+          </details>
+        </>
+      )}
+
+      <footer>Built with Electron, electron-vite, React and TypeScript. All data is stored locally.</footer>
+    </main>
+  )
+}
