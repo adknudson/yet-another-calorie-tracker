@@ -699,7 +699,19 @@ export default function App() {
         </div>
       )}
 
-      <footer>Built with Electron, electron-vite, React and TypeScript. All data is stored locally.</footer>
+      <footer>
+        Built with Electron, electron-vite, React and TypeScript. All data is stored locally.
+        <br />
+        Don&apos;t know how many calories you need? Start here:{' '}
+        <a href="https://www.calculator.net/calorie-calculator.html" target="_blank" rel="noreferrer">
+          Calorie calculator
+        </a>
+        <br />
+        View the {' '}
+        <a href="https://github.com/adknudson/yet-another-calorie-tracker" target="_blank" rel="noreferrer">
+          source on GitHub
+        </a>
+      </footer>
     </main>
   )
 }
