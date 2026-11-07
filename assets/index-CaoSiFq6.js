@@ -12771,7 +12771,27 @@ function App() {
 					children: "Undo"
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("footer", { children: "Built with Electron, electron-vite, React and TypeScript. All data is stored locally." })
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("footer", { children: [
+				"Built with Electron, electron-vite, React and TypeScript. All data is stored locally.",
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+				"Don't know how many calories you need? Start here:",
+				" ",
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+					href: "https://www.calculator.net/calorie-calculator.html",
+					target: "_blank",
+					rel: "noreferrer",
+					children: "Calorie calculator"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+				"View the ",
+				" ",
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+					href: "https://github.com/adknudson/yet-another-calorie-tracker",
+					target: "_blank",
+					rel: "noreferrer",
+					children: "source on GitHub"
+				})
+			] })
 		]
 	});
 }
