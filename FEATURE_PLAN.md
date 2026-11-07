@@ -35,7 +35,7 @@ Validation for every item: `npm run typecheck`, plus manual checks in the browse
 
 ## 4. Export / import entries (JSON)
 
-- [ ] Settings gets "Export entries" and "Import entries" buttons. Entries-only data transfer (no settings), payload shape `{ version: 1, entries }`. Import replaces ALL logged entries after a confirm step; settings are untouched.
+- [x] Settings gets "Export entries" and "Import entries" buttons. Entries-only data transfer (no settings), payload shape `{ version: 1, entries }`. Import replaces ALL logged entries after a confirm step; settings are untouched.
 - Files:
   - `src/shared/sanitize.ts` (new) — `sanitizeEntries` moved out of `src/main/storage.ts`, plus `parseExportPayload`: accepts a JSON string or object, throws descriptive errors for invalid JSON / wrong shape. Used by both the Electron and browser import paths. (`sanitizeSettings` stays private in main since settings are no longer imported.)
   - `src/shared/types.ts` — new `ExportPayload` interface.
@@ -47,7 +47,7 @@ Validation for every item: `npm run typecheck`, plus manual checks in the browse
 
 ## 5. PWA (installable mobile)
 
-- [ ] The browser build becomes an installable PWA with offline support.
+- [x] The browser build becomes an installable PWA with offline support.
 - Files:
   - `src/renderer/public/manifest.webmanifest` (new) — name, standalone display, theme color, icons (copy the needed sizes from `build/icons/` into the public dir so they are served).
   - `src/renderer/public/sw.js` (new) — hand-rolled ~30-line service worker: precache `/` and runtime cache-first for same-origin GETs. No new dependencies (Vite hashes bundle names, so a static precache list isn't feasible without workbox).

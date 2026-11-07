@@ -65,10 +65,15 @@ Electron itself does **not** run natively on iOS or Android. However, this app i
 - The renderer is plain React + CSS with zero Electron-specific UI code.
 - `src/renderer/src/storage.ts` already includes a `localStorage` fallback, so the exact same UI works in any modern mobile browser (verified by loading the built bundle directly in a browser).
 
-To ship it to phones:
+**PWA support is implemented.** The build output (`out/renderer/`) is installable as a PWA on both iOS and Android with data kept in `localStorage`:
 
-1. **PWA (recommended):** add a manifest + service worker and serve `out/renderer/` over HTTPS — installable on both iOS and Android with data kept in `localStorage`.
-2. **Capacitor:** wrap the same web build as a native app for App Store / Play Store distribution.
+- `src/renderer/public/manifest.webmanifest` — app name, standalone display, theme colors, 192/512 px icons (including a maskable variant).
+- `src/renderer/public/sw.js` — hand-rolled service worker that precaches the app shell and serves same-origin GETs cache-first, so the app reloads offline.
+- `src/renderer/src/main.tsx` registers the service worker only when served over http(s), so Electron's `file://` protocol is unaffected.
+
+To serve it on a phone, build (`npm run build`) and host `out/renderer/` over HTTPS — no extra tooling required.
+
+Other option: **Capacitor** — wrap the same web build as a native app for App Store / Play Store distribution.
 
 ## Security notes
 
